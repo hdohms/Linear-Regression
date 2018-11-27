@@ -11,6 +11,12 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+```{r library, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(dslabs)
+library(Lahman)
+```
+
 Linear regression is commonly used to quantify the relationship between two or more variables. It is also used to adjust for confounding. In this course, we cover how to implement linear regression and adjust for confounding in practice using R.
 
 The class notes for this course series can be found in Professor Irizarry's freely available 
@@ -169,9 +175,83 @@ Why do we consider team statistics as well as individual statistics?
 * The ultimate goal of sabermatics is to rank teams, not players.
 
 
-### 1.1.2 Bases on Balls or Stolen Bases
-Let's start looking at some baseball data and try to answer your questions using these data.First one, do teams that hit more home runs score more runs?We know what the answer to this will be, but let's look at the data anyways. We're going to examine data from 1961 to 2001. We end at 2001 because, remember, we're back in 2002, getting ready to build a team. We started in 1961, because that year, the league changed from 154 games to 162 games. The visualization of choice when exploring the relationship between two variables like home runs and runs is a scatterplot.
-The following code shows you how to make that scatterplot. We start by loading the Lahman library that has all these baseball statistics. And then we simply make a scatterplot using 2d plot. Here's a plot of runs per game versus home runs per game. The plot shows a very strong association-- teams with more home runs tended to score more runs. Now, let's examine the relationship between stolen bases and wins. Here are the runs per game plotted against stolen bases per game. Here, the relationship is not as clear. Finally, let's examine the relationship between bases on balls and runs. Here are runs per game versus bases on balls per game. Although the relationship is not as strong as it was for home runs, we do see a pretty strong relationship here. We know that, by definition, home runs cause runs, because when you hit a home run, at least one run will score. Now it could be that home runs also cause the bases on balls. If you understand the game, you will agree with me that that could be the case. So it might appear that a base on ball is causing runs, when in fact, it's home runs that's causing both. This is called confounding. An important concept you will learn about. Linear regression will help us parse all this out and quantify the associations. This will then help us determine what players to recruit. Specifically, we will try to predict things like how many more runs will the team score if we increase the number of bases on balls but keep the home runs fixed. Regression will help us answer this question, as well.
+### 1.1.3 Bases on Balls or Stolen Bases
+Let's start looking at some baseball data and try to answer your questions using these data. **First one, do teams that hit more home runs score more runs**? We know what the answer to this will be, but let's look at the data anyways. We're going to examine data from 1961 to 2001. We end at 2001 because, remember, we're back in 2002, getting ready to build a team. We started in 1961, because that year, the league changed from 154 games to 162 games. **The visualization of choice when exploring the relationship between two variables like home runs and runs is a scatterplot**.
+
+```{r relationship-HR-R}
+data("Teams")
+ds_theme_set()
+Teams %>%
+  filter(yearID %in% 1961:2001) %>%
+  mutate(HR_per_game = HR / G, R_per_game = R / G) %>%
+  ggplot(aes(HR_per_game, R_per_game)) +
+  geom_point(alpha = 0.5)
+```
+
+The following code shows you how to make that scatterplot. We start by loading the Lahman library that has all these baseball statistics. And then we simply make a scatterplot using ggplot. Here's a plot of runs per game versus home runs per game. **The plot shows a very strong association-- teams with more home runs tended to score more runs**.
+
+```{r relationship-SB-R}
+Teams %>%
+  filter(yearID %in% 1961:2001) %>%
+  mutate(SB_per_game = SB / G, R_per_game = R / G) %>%
+  ggplot(aes(SB_per_game, R_per_game)) +
+  geom_point(alpha = 0.5)
+```
+
+Now, let's examine the relationship between stolen bases and wins. Here are the runs per game plotted against stolen bases per game. **Here, the relationship is not as clear**. 
+
+```{r relationship-BB-R}
+Teams %>%
+  filter(yearID %in% 1961:2001) %>%
+  mutate(BB_per_game = BB / G, R_per_game = R / G) %>%
+  ggplot(aes(BB_per_game, R_per_game)) +
+  geom_point(alpha = 0.5)
+```
+
+Finally, let's examine the relationship between bases on balls and runs. Here are runs per game versus bases on balls per game. **Although the relationship is not as strong as it was for home runs, we do see a pretty strong relationship here**. We know that, by definition, home runs cause runs, because when you hit a home run, at least one run will score. Now it could be that home runs also cause the bases on balls. If you understand the game, you will agree with me that that could be the case. So it might appear that a base on ball is causing runs, when in fact, it's home runs that's causing both. **This is called confounding**. An important concept you will learn about. Linear regression will help us parse all this out and quantify the associations. This will then help us determine what players to recruit. Specifically, we will try to predict things like how many more runs will the team score if we increase the number of bases on balls but keep the home runs fixed. Regression will help us answer this question, as well.
+
+#### Question 1
+You want to know whether teams with more at-bats per game have more runs per game. What R code below correctly makes a scatterplot for this relationship
+
+```{r question-1a}
+Teams %>% filter(yearID %in% 1961:2001) %>%
+  ggplot(aes(AB, R)) +
+  geom_point(alpha = 0.5)
+```
+
+```{r question-1b}  
+Teams %>% filter(yearID %in% 1961:2001) %>%
+  mutate(AB_per_game = AB / G, R_per_game = R / G) %>%
+  ggplot(aes(AB_per_game, R_per_game)) +
+  geom_point(alpha = 0.5)
+```
+
+```{r question-1c}  
+Teams %>% filter(yearID %in% 1961:2001) %>%
+  mutate(AB_per_game = AB / G, R_per_game = R / G) %>%
+  ggplot(aes(AB_per_game, R_per_game)) +
+ geom_line()
+```
+
+```{r question-1d}  
+Teams %>% filter(yearID %in% 1961:2001) %>%
+  mutate(AB_per_game = AB / G, R_per_game = R / G) %>%
+  ggplot(aes(R_per_game, AB_per_game)) +
+  geom_point()
+```
+  
+
+**Answer is B**
+
+
+#### Question 2
+What does the variable 'SOA' stand for in the Teams table?
+Hint: make sure to use the help file (?Teams)
+  
+* sacrifice out
+* slides or attempts
+* **strikeouts by pitcher**
+* accumulated singles
 
 
 ## R Markdown
