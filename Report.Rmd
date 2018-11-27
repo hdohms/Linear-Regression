@@ -304,26 +304,55 @@ The correlation coefficient is a summary of what?
 * The distribution of a variable
 
 
+### 1.2.2 Correlation Coefficient
+The correlation coefficient is defined for a list of pairs -- $(x_1, y_1),...,(x_n, y_n)$ -- with the following formula:
+$$\rho = \frac{1}{n} \sum_{i=1}^{n} \Bigg(\frac{x_i-\mu_x}{\sigma_x}\Bigg) * \Bigg(\frac{y_i-\mu_y}{\sigma_y}\Bigg)$$
+
+Here, $\mu_x$ and $\mu_y$ are the **averages** of x and y, respectively. And $\sigma_x$ and $\sigma_y$ are the **standard deviations**. The Greek letter **rho** is commonly used in the statistics book to denote this correlation. The reason is that rho is the Greek letter for r, the first letter of the word regression. Soon, we will learn about the connection between correlation and regression. To understand why this equation does, in fact, summarize how two variables move together, consider the **i-th** entry of **x** is $x_i$ minus ${\mu_x}$ divided by $\sigma_x$ SDs away from the average. 
+$$\bigg( \frac{x_i - \mu_x}{\sigma_x} \bigg) $$
 
 
-## R Markdown
+Similarly, the $y_i$ -- which is paired with the $x_i$-- is $y_i$ minus $\mu_y$ divided by $\sigma_y$ SDs away from the average **y**.
+$$\bigg( \frac{y_i - \mu_y}{\sigma_y} \bigg) $$
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+**The average (mean):**
+$$\mu_x = \frac{1}{n} \sum_{i=1}^n x_i=\frac{1}{n}\big(x_1+x_2+x_3+...+x_n\big) $$
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+**The standard deviation (sd):**
+$$\sigma_x = \frac{1}{n} \sum_{i=1}^n \sqrt{\frac{(x-\mu_x)^2}{n-1}}$$
 
-```{r cars}
-summary(cars)
+**The variance:**
+$$ variance = 2 *\sigma $$
+
+
+If x and y are unrelated, then the product of these two quantities will be positive. That happens when they are both positive or when they are both negative as often as they will be negative. That happens when one is positive and the other is negative, or the other way around. One is negative and the other one is positive. This will average to about 0. The correlation is this average. And therefore, unrelated variables will have a correlation of about 0. If instead the quantities vary together, then we are averaging mostly positive products. Because they're going to be either positive times positive or negative times negative. And we get a positive correlation. If they vary in opposite directions, we get a negative correlation. Another thing to know is that we can show mathematically that the correlation is always between negative 1 and 1. To see this, consider that we can have higher correlation than when we compare a list to itself. That would be perfect correlation. 
+
+$$\rho = \frac{1}{n} \sum_{i=1}^{n} \Bigg(\frac{x_i-\mu_x}{\sigma_x}\Bigg)^2 = \frac{1}{\sigma_x^2} \frac{1}{n} \sum_{i=1}^{n} (x_i-\mu_x)^2 = 1$$
+
+In this case, the correlation is given by this equation, which we can show is equal to 1. A similar argument with x and its exact opposite, negative x, proves that the correlation has to be greater or equal to negative 1. So it's between minus 1 and 1. 
+
+```{r correlation_coefficient}
+galton_heights <- GaltonFamilies %>%
+  filter(childNum == 1 & gender == 'male') %>%
+  select(father, childHeight) %>%
+  rename(son = childHeight)
+galton_heights %>% summarize(cor(father, son))
 ```
 
-## Including Plots
+The correlation between father and sons' height is about 0.5. You can compute that using this code. We saw what the data looks like when the correlation is 0.5. 
 
-You can also embed plots, for example:
+<img src="images/1_2_2-1.png" style="float: left; margin-right: 10px;" />
 
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
+To see what data looks like for other values of rho, here are six examples of pairs with correlations ranging from negative 0.9 to 0.99. When the correlation is negative, we see that they go in opposite direction. As x increases, y decreases. When the correlation gets either closer to 1 or negative 1, we see the clot of points getting thinner and thinner. When the correlation is 0, we just see a big circle of points.
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+#### Question 1
+Below is a scatterplot showing the relationship between two variables, x and y.
 
-<img src="images/Course_Overview.png" style="float: left; margin-right: 10px;" />
+<img src="images/1_2_2-2.png" style="margin-right: 10px;" />
+
+From this figure, the correlation between x and y appears to be about:
+  
+* **-0.9**
+* -0.2
+* 0.9
+* 2
