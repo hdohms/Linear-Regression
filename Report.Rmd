@@ -688,4 +688,80 @@ Why is the number of home runs considered a confounder of the relationship betwe
 
 * The correlation between home runs and runs per game is stronger than the correlation between bases on balls and runs per game.  
 
-* **Players who get more bases on balls also tend to have more home runs; in addition, home runs increase the points per game**.  
+* **Players who get more bases on balls also tend to have more home runs; in addition, home runs increase the points per game**.    
+
+
+### 2.1.2 Stratification and Multivariate Regression
+To try to determine if bases on balls is still useful for creating runs, a first approach is to keep home runs fixed at a certain value and then examine the relationship between runs and bases on balls.
+As we did when we stratified fathers by rounding to the closest inch, here, we can stratify home runs per game to the closest 10th. 
+
+```{r 2_1_2}
+data("Teams")
+
+dat <- Teams %>%
+  filter(yearID %in% 1961:2001) %>%
+  mutate(HR_strata = round(HR / G, 1),
+         BB_per_game = BB / G,
+         R_per_game = R / G) %>%
+  filter(HR_strata >= 0.4 & HR_strata <= 1.2)
+
+dat %>%
+  ggplot(aes(BB_per_game, R_per_game)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm") +
+  facet_wrap(~HR_strata)
+```
+
+We filtered our strata with few points. We use this code to generate an informative data set. And then, we can make a scatter plot for each strata. A scatterplot of runs versus bases on balls.This is what it looks like.
+Remember that the regression slope for predicting runs with bases on balls when we ignore home runs was 0.735. But once we stratify by home runs, these slopes are substantially reduced. 
+
+```{r 2_1_2-1}
+dat %>%
+  group_by(HR_strata) %>%
+  summarize(slope = cor(BB_per_game, R_per_game) * sd(R_per_game) / sd(BB_per_game))
+```
+
+We can actually see what the slopes are by using this code. We stratify by home run and then compute the slope using the formula that we showed you previously. These values are closer to the slope we obtained from singles, which is 0.449. Which is more consistent with our intuition. Since both singles and bases on ball get us to first base, they should have about the same predictive power. Now, although our understanding of the application -- our understanding of baseball -- tells us that home runs cause bases on balls and not the other way around, we can still check if, after stratifying by base on balls, we still see a home run effect or if it goes down. 
+
+```{r 2_1_2-2}
+dat_1 <- Teams %>%
+  filter(yearID %in% 1961:2001) %>%
+  mutate(BB_strata = round(BB / G, 1),
+         HR_per_game = HR / G,
+         R_per_game = R / G) %>%
+  filter(BB_strata >= 2.8 & BB_strata <= 3.9)
+
+dat_1 %>%
+  ggplot(aes(HR_per_game, R_per_game)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm") +
+  facet_wrap(~BB_strata)
+
+dat_1 %>%
+  group_by(BB_strata) %>%
+  summarize(slope = cor(HR_per_game, R_per_game) * sd(R_per_game) / sd(HR_per_game))
+```
+
+We use the same code that we just used for bases on balls. But now, we swap home runs for bases on balls to get this plot. In this case, the slopes are the following. You can see they are all around 1.5, 1.6, 1.7. So they do not change that much from the original slope estimate, which was 1.84. Regardless, it seems that if we stratify by home runs, we have an approximately bivariate normal distribution for runs versus bases on balls.
+Similarly, if we stratify by bases on balls, we have an approximately normal bivariate distribution for runs versus home runs. So what do we do? It is somewhat complex to be computing regression lines for each strata. 
+
+$$E[R~|~BB=x_1,~HR=x_2]~=~\beta_0~+~\beta_1(x_2)x_1~+~\beta(x_1)x_2 $$
+
+We're essentially fitting this model that you can see in this equation with the slopes for x1 changing for different values of x2 and vice versa. Here, x1 is bases on balls. And x2 are home runs. Is there an easier approach?
+Note that if we take random variability into account, the estimated slopes by strata don't appear to change that much. If these slopes are in fact the same, this implies that this function beta 1 of x2 and the other function beta 2 of x1 are actually constant. 
+
+$$E[R~|~BB=x_1,~HR=x_2]~=~\beta_0~+~\beta_1x_1~+~\beta_2x_2 $$
+
+Which, in turn, implies that the expectation of runs condition on home runs and bases on balls can be written in this simpler model. This model implies that if the number of home runs is fixed, we observe a linear relationship between runs and bases on balls. And that the slope of that relationship does not depend on the number of home runs.
+Only the slope changes as the home runs increase. The same is true if we swap home runs and bases on balls. In this analysis, referred to as **multivariate regression**, we say that the bases on balls slope beta 1 is **adjusted** for the home run effect. If this model is correct, then confounding has been accounted for. But how do we estimate beta 1 and beta 2 from the data? For this, we'll learn about linear models and least squares estimates.  
+
+#### Question 1
+As described in the video, when we stratified our regression lines for runs per game vs. bases on balls by the number of home runs, what happened?  
+
+* **The slope of runs per game vs. bases on balls within each stratum was reduced because we removed confounding by home runs.** 
+
+* The slope of runs per game vs. bases on balls within each stratum was reduced because there were fewer data points. 
+
+* The slope of runs per game vs. bases on balls within each stratum increased after we removed confounding by home runs.
+
+* The slope of runs per game vs. bases on balls within each stratum stayed about the same as the original slope.
