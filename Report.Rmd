@@ -496,3 +496,52 @@ Select ALL that apply.
 
 * Conditional means are a useful theoretical tool but cannot be calculated.  
 
+
+
+### 1.3.2 Bivariate Normal Distribution
+**Correlation and the regression line are widely used summary statistics. But it is often misused or misinterpreted**. Ascombe's example provided example of data sets in which summarizing with a correlation would be a mistake. But we also see it in the media and in scientific literature as well. **The main way we motivate the use of correlation involve what is called the bivariate normal distribution**. When a pair of random variables is approximated by a bivariate normal distribution, the scatterplot looks like ovals, like American footballs. They can be thin. That's when they have high correlation. All the way up 
+to a circle shape when they have no correlation. We saw some examples previously. Here they are again. 
+A more technical way to define the bivariate normal distribution is the following. First, this distribution is defined for pairs. So we have two variables, x and y. And they have paired values. They are going to be bivariate normally distributed if the following happens. If x is a normally distributed random variable, and y is also a normally distributed random variable-- and for any grouping of x that we can define, say, with x being equal to some predetermined value, which we call here in this formula little x -- then the y's in that group are approximately normal as well. If this happens, then the pair is approximately bivariate normal. When we fix x in this way, we then refer to the resulting distribution of the y's in the group -- defined by setting x in this way -- as the conditional distribution of y given x. 
+$$f_{Y|X=x}~is~the~conditional~distribution\\and~E(Y|X=x)~is~the~conditional~expected~value$$
+
+We write the notation like this for the conditional distribution and the conditional expectation. If we think the height data is well-approximated by the bivariate normal distribution, then we should see the normal approximation hold for each grouping. Here, we stratify the son height by the standardized father heights and see that the assumption appears to hold.  
+
+```{r 1_3_2}
+data("GaltonFamilies")
+
+# Prepare the data set with the heights of fathers and the first son
+galton_heights <- GaltonFamilies %>%
+  filter(childNum == 1 & gender == 'male') %>%
+  select(father, childHeight) %>%
+  rename(son = childHeight)
+
+# bivariate normal distribution
+galton_heights %>%
+  mutate(z_father = round((father - mean(father)) / sd(father))) %>%
+  filter(z_father %in% -2:2) %>%
+  ggplot() +
+  stat_qq(aes(sample = son)) +
+  facet_wrap(~z_father)
+```
+
+Here's the code that gives us the desired plot.
+
+$$E(Y|X=x)~=~\mu_x~+~\rho~*~\frac{X~-~\mu_x}{\sigma_x}~*~\sigma_y$$
+
+Now, we come back to defining correlation. Galton showed -- using mathematical statistics -- that when two variables follow a bivariate normal distribution, then for any given x the expected value of the y in pairs for which x is set at that value is mu y plus rho x minus mu x divided by sigma x times sigma y. 
+
+$$\frac{E(Y|X=x)~-~\mu_y}{\sigma_x}~=~\rho~*~\frac{x~-~\mu_x}{\sigma_x}$$
+
+Note that this is a line with slope rho times sigma y divided by sigma x and intercept mu y minus n times mu x. And therefore, this is the same as the regression line we saw in a previous video. That can be written like this.
+So in summary, if our data is approximately bivariate, then the conditional expectation -- which is the best prediction for y given that we know the value of x -- is given by the regression line.  
+
+#### Question 1
+A regression line is the best prediction of Y given we know the value of X when:  
+
+* **X and Y follow a bivariate normal distribution.**  
+
+* Both X and Y are normally distributed.  
+
+* Both X and Y have been standardized.  
+
+* There are at least 25 X-Y pairs.  
