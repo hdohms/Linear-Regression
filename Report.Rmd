@@ -16,6 +16,8 @@ library(tidyverse)
 library(dslabs)
 library(Lahman)
 library(HistData)
+library(broom)
+library(gridExtra)
 ```
 
 Linear regression is commonly used to quantify the relationship between two or more variables. It is also used to adjust for confounding. In this course, we cover how to implement linear regression and adjust for confounding in practice using R.
@@ -874,3 +876,62 @@ data_teams <- Teams %>%
 fit <-lm(R_per_game ~ BB_per_game + HR_per_game, data = data_teams)
 fit
 ```
+
+
+### 2.2.3 LSE are Random Variables
+The LSE are derived from the data, Y1 through Yn, which are random. This implies that our estimates are random variables. To see this, we can run a Monte Carlo simulation in which we assume that the son and father height data that we have defines an entire population. And we're going to take random samples of size 50 and compute the regression slope coefficient for each one. 
+
+```{r 2_2_3-1}
+data("GaltonFamilies")
+
+# Prepare the data set with the heights of fathers and the first son
+galton_heights <- GaltonFamilies %>%
+  filter(childNum == 1 & gender == 'male') %>%
+  select(father, childHeight) %>%
+  rename(son = childHeight)
+
+# Monte-Carlo simulation and plotting them
+B <- 1000
+N <- 50
+lse <- replicate(B,{
+  sample_n(galton_heights, N, replace = TRUE) %>%
+    lm(son~father, data = .) %>% .$coef
+})
+lse <- data.frame(beta_0 = lse[1,], beta_1 = lse[2,])
+
+p1 <- lse %>%
+  ggplot(aes(beta_0)) +
+  geom_histogram(binwidth = 5, color = "black")
+
+p2 <- lse %>%
+  ggplot(aes(beta_1)) +
+  geom_histogram(binwidth = 0.1, color = "black")
+
+grid.arrange(p1, p2, ncol = 2)
+```
+
+We write this code, which gives us several estimates of the regression slope.
+We can see the variability of the estimates by plotting their distribution. Here you can see the histograms of the estimated beta 0's and the estimated beta 1's. **The reason these look normal is because the central limit theorem applies here as well.For large enough N, the least squares estimates will be approximately normal with expected value beta 0 and beta 1 respectively**.
+The standard errors are a bit complicated to compute, but mathematical theory does allow us to compute them, and they are included in the summary provided by the lm-function. 
+
+```{r 2_2_3-2}
+# Standard error for one simulated data set
+sample_n(galton_heights, N, replace = TRUE) %>%
+  lm(son~father, data = .) %>% summary
+```
+
+Here are the estimated standard errors for one of our simulated data sets. You could see them at the second column in the coefficients table. 
+
+```{r 2_2_3-3}
+# Estimated standard errors for the lse-data set(see above)
+lse %>% summarize(se_0 = sd(beta_0), se_1 = sd(beta_1))
+```
+
+You can see that the standard errors estimates reported by the summary function are closed, so the standard errors that we obtain from our Monte Carlo simulation. 
+The summary function also reports t-statistics --this is the t value column-- and p-values. This is the Pr bigger than absolute value of t column. The t-statistic is not actually based on the central limit theorem, but rather on the assumption that the epsilons follow a normal distribution. Under this assumption, mathematical theory tells us that the LSE divided by their standard error, which we can see here and here, follow a t distribution with N minus p degrees of freedom, with p the number of parameters in our model, which in this case is 2. The 2p values are testing the null hypothesis that beta 0 is 0 and beta 1 is 0 respectively. Note that as we described previously, for large enough N, the central limit works, and the t distribution becomes almost the same as a normal distribution.
+So if either you assume the errors are normal and use the t distribution or if you assume that N is large enough to use the central limit theorem, you can construct confidence intervals for your parameters. We know here that although we will not show examples in this video, hypothesis testing for regression models is very commonly used in, for example, epidemiology and economics, to make statements such as the effect of A and B was statistically significant after adjusting for X, Y, and Z.
+But it's very important to note that several assumptions -- we just described some of them-- have to hold for these statements to hold.
+
+<img src="images/2_2_3-Q1.png" style="margin-right: 10px;" />
+
+<img src="images/2_2_3-Q2.png" style="margin-right: 10px;" />
