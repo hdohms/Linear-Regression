@@ -794,3 +794,83 @@ Here, we have changed xi to xi minus the average height x bar. We have centered 
 <img src="images/2_1_3-Q1.png" style="margin-right: 10px;" />
 
 <img src="images/2_1_3-Q2.png" style="margin-right: 10px;" />
+
+
+### 2.2.1 Least Squares Estimates (LSE)
+For linear models to be useful, we have to estimate the unknown parameters, the betas.
+The standard approach in science is to find the values that minimize the distance of the fitted model to the data. To quantify this, we use the **least squares equation**.  For Galton's data, we would write something like this. 
+
+$$RSS~=~\sum_{i=1}^{n}\{Y_i-(\beta_0+\beta_1x_i)\}^2$$
+
+**This quantity is called the Residual Sum of Squares, RSS.**
+**Once we find the values that minimize the RSS, we call the values the Least Squares Estimate, LSE**
+, and denote them, in this case, with $\hat\beta_0$ hat and $\hat\beta_1$. Let's write the function that computes the RSS for any pair of values, beta 0 and beta 1, for our heights data. 
+
+
+```{r 2_2_1-1}
+data("GaltonFamilies")
+
+# Prepare the data set with the heights of fathers and the first son
+galton_heights <- GaltonFamilies %>%
+  filter(childNum == 1 & gender == 'male') %>%
+  select(father, childHeight) %>%
+  rename(son = childHeight)
+
+# RSS-function
+rss <- function(beta0, beta1, data){
+  resid <- galton_heights$son - (beta0 + beta1 * galton_heights$father)
+  return(sum(resid^2))
+}
+```
+
+It would look like this.
+So for any pair of values, we get an RSS. So this is a three-dimensional plot with beta 1 and beta 2, and x and y and the RSS as a z. To find the minimum, you would have to look at this three-dimensional plot. Here, we're just going to make a two-dimensional version by keeping beta 0 fixed at 25. So it will be a function of the RSS as a function of beta 1.
+
+```{r 2_2_1-2}
+# Linear Model - Least Square Estimates
+beta1 = seq(0, 1, len=nrow(galton_heights))
+results <- data.frame(beta1 = beta1,
+                      rss = sapply(beta1, rss, beta0 = 25))
+results %>% ggplot(aes(beta1, rss)) + geom_line() + 
+  geom_line(aes(beta1, rss), col=2)
+```
+
+We can use this code to produce this plot. We can see a clear minimum for beta 1 at around 0.65. So you could see how we would pick the least squares estimates. However, this minimum is for beta 1 when beta 0 is fixed at 25. But we don't know if that's the minimum for beta 0. We don't know if 25 komma 0.65 minimizes the equation across all pairs. We could use trial and error, but it's really not going to work here. Instead we will use calculus. We'll take the partial derivatives, set them equal to 0, and solve for beta 1 and beta 0. Of course, if we have many parameters, these equations can get rather complex. But there are functions in R that do these calculations for us. We will learn these soon.
+To learn the mathematics behind this, you can consult the book on linear models.
+
+<img src="images/2_2_1-Q1.png" style="margin-right: 10px;" />
+
+<img src="images/2_2_1-Q2.png" style="margin-right: 10px;" />
+
+
+### 2.2.2 The lm Function
+In r, we can obtain the least squares estimates using the lm function.
+
+$$Y_i~=~\beta_0~+~\beta_1x_i~+~\epsilon_i$$
+
+To fit the following model where Yi is the son's height and Xi is the father height, we would write the following piece of code. 
+
+```{r 2_2_2-1}
+# LSE
+fit <- lm(son ~ father, data = galton_heights)
+fit
+```
+
+This gives us the least squares estimates, which we can see in the output of r. The general way we use lm is by using the tilde character to let lm know which is the value we're predicting that's on the left side of the tilde, and which variables we're using to predict-- those will be on the right side of the tilde.
+The intercept is added automatically to the model.
+So you don't have to include it when you write it. The object fit that we just computed includes more information about the least squares fit. We can use the function summary to extract more of this information, like this.
+To understand some of the information included in this summary, we need to remember that the LSE are random variables. Mathematical statistics gives us some ideas of the distribution of these random variables. And we'll learn some of that next.
+
+<img src="images/2_2_2-Q1.png" style="margin-right: 10px;" />
+
+```{r 2_2_2-2}
+#Question 1
+data("Teams")
+
+data_teams <- Teams %>%
+  filter(yearID %in% 1961:2001) %>%
+  mutate(R_per_game = R / G, BB_per_game = BB / G, HR_per_game = HR / G)
+
+fit <-lm(R_per_game ~ BB_per_game + HR_per_game, data = data_teams)
+fit
+```
