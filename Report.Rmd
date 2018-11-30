@@ -790,3 +790,7 @@ We estimate these from the data. Once we do, we can predict the sons' heights fr
 $$Y_i~=~\beta_0~+~\beta_1(x_i~-~\bar{x})~+~\epsilon_i,~i~=~1,\dots,N$$
 
 Here, we have changed xi to xi minus the average height x bar. We have centered our covariate xi. In this case, beta 0, the intercept, would be the predicted height for the average father for the case where xi equals x bar
+
+<img src="images/2_1_3-Q1.png" style="margin-right: 10px;" />
+
+<img src="images/2_1_3-Q2.png" style="margin-right: 10px;" />
