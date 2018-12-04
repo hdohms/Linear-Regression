@@ -999,10 +999,53 @@ This is equivalent to tibble. **The tibble is a special kind of data frame**. We
 
 
 ### 2.3.2 Tibbles: Differences from Data Frames
-In this video, we're going to describe some of the main differences between tibbles and data frames. First, the print method for tibble is much more readable than that of a data frame. To see this, type teams on your console after loading the Baseball Lahman Database. And you will see a very, very long list of columns and rows. It's barely readable. Teams is a data frame with many rows and columns. That's why you see that. Nevertheless, the output just shows everything wraps around and is hard to read. It is so bad that we don't even print it here. We'll let you print it on your own screen. Now if you convert this data frame to a tibble data frame, the output is much more readable. Here's an example.
+In this video, we're going to describe some of the main differences between tibbles and data frames.  
 
-That's the first main difference between tibbles and data frames. A second one is that if you subset the columns of a data frame, you may get back an object that is not a data frame. Here's an example. If we subset the 20th column, we get back an integer. That's not a data frame. With tibbles, this is not the case. Here's an example.
-If we subset a table, we get back a table. This is useful in the tidyverse since functions require data frames as input. Now whenever you want to access the original vector that defines a column in a table, for this, you actually have to use the accessor dollar sign.
+**1. Tibbles display better**  
+First, the print method for tibble is much more readable than that of a data frame. To see this, type teams on your console after loading the Baseball Lahman Database. And you will see a very, very long list of columns and rows. It's barely readable. Teams is a data frame with many rows and columns. That's why you see that. Nevertheless, the output just shows everything wraps around and is hard to read. It is so bad that we don't even print it here. We'll let you print it on your own screen.
+
+```{r 2_3_2-1}
+# Tibbles display better
+as.tibble(Teams)
+```
+
+Now if you convert this data frame to a tibble data frame, the output is much more readable. Here's an example.
+
+
+**2. Subsets of tibbles are tibbles**  
+That's the first main difference between tibbles and data frames. A second one is that if you subset the columns of a data frame, you may get back an object that is not a data frame. 
+
+```{r 2_3_2-2}
+class(Teams[,20])
+```
+
+Here's an example. If we subset the 20th column, we get back an integer. That's not a data frame. With tibbles, this is not the case. 
+
+```{r 2_3_2-3}
+class(as.tibble(Teams[,20]))
+```
+
+Here's an example. If we subset a table, we get back a table. This is useful in the tidyverse since functions require data frames as input. Now whenever you want to access the original vector that defines a column in a table, for this, you actually have to use the accessor dollar sign.
+
+```{r 2_3_2-4}
+class(as.tibble(Teams)$HR)
+```
+
 Here's an example. A related feature to this is that tibbles will give you a warning if you try to access a column that does not exist. That's not the case for data frames. For example, if we accidentally write hr in lowercase instead of uppercase, with a data frame, all we get is a no. No warning. This can make it quite hard to debug code. In contrast, if it's a tibble, and you try to access the lowercase hr column, which doesn't exist, you actually get a warning.
 
-A third difference is that while columns of a data frame need to be a vector of number strings or Boolean, tibbles can have more complex objects, such as lists or functions. Also note that we can create tibbles with the tibble function. So, look at this line of code. We're creating a column that actually has functions in it. You can see the output here. Finally, the last difference we describe is that tibbles can be grouped. The function group by returns a special kind of tibble, a grouped tibble. This class stores information that lets you know which rows are in which groups. The tidyverse functions, in particular the summarize functions, are aware of the group information. In the example we showed, we saw that the on function, which is not part of the tidyverse, does not know how to deal with group tibbles. The object is basically converted to a regular data frame, and then the function runs ignoring the groups. This is why we only get one pair of estimates, as we see here. To make these non-tidyverse function better integrate with a tidyverse, we will learn a new function, the function do.
+
+**3. Tibbles can have complex entries**  
+A third difference is that while columns of a data frame need to be a vector of number strings or Boolean, tibbles can have more complex objects, such as lists or functions. Also note that we can create tibbles with the tibble function. 
+
+```{r 2_3_2-5}
+# Tibbles can have complex entries
+tibble(id = c(1, 2, 3), func = c(mean, median, sd))
+```
+
+So, look at this line of code. We're creating a column that actually has functions in it. You can see the output here. 
+
+
+**4. Tibbles can be gouped**  
+Finally, the last difference we describe is that tibbles can be grouped. The function group by returns a special kind of tibble, a grouped tibble. This class stores information that lets you know which rows are in which groups. The tidyverse functions, in particular the summarize functions, are aware of the group information. In the example we showed, we saw that the on lm-function, which is not part of the tidyverse, does not know how to deal with group tibbles. The object is basically converted to a regular data frame, and then the function runs ignoring the groups. This is why we only get one pair of estimates, as we see here. To make these non-tidyverse function better integrate with a tidyverse, we will learn a new function, the function **do**.
+
+<img src="images/2_3_2-Q1.png" style="margin-right: 10px;" />
