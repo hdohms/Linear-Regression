@@ -1214,3 +1214,174 @@ We'll see an example of augment in a future video.
 <img src="images/2_3_4-Q2_1.png" style="margin-right: 10px;" />
 
 <img src="images/2_3_4-Q2_2.png" style="margin-right: 10px;" />
+
+
+## 2.4 Regression and Baseball
+
+### 2.4.1 Building a Better Offensive Metric for Baseball
+In trying to answer how well bases on balls predict runs, data exploration let us to this model. 
+
+$$E[R~|~BB=x_1,HR=x_2]~=~\beta_0~+~\beta_1x_1~+~\beta_2x_2$$
+
+Here, the data is approximately normal. And conditional distributions were also normal. Thus, we're justified to pose a linear model like this.
+
+$$Y_i~=~\beta_0~+~\beta_1x_1~+~\beta_2x_2~+~\epsilon_i\\Y_i~=~runs~per~game\\x_1~=~BB~per~game\\x_2~=~HR~per~game$$
+
+To use lm here, we need to let it know that we have two predictive variables. So we use the plus symbol as follows. 
+
+```{r 2_4_1-1}
+data("Teams")
+
+fit <- Teams %>%
+  filter(yearID %in% 1961:2001) %>%
+  mutate(BB = BB / G, HR = HR / G, R = R / G) %>%
+  lm(R ~ BB + HR, data = .)
+
+tidy(fit, conf.int = TRUE)
+```
+
+Here's a code that fits that multiple regression model. Now, we can use the tidy function to see the nice summary. When we fit the model with only one variable without the adjustment, the estimated slopes were 0.735 and 1.844 for bases on ball and home runs, respectively.
+But note that when we fit the multivariate model, both these slopes go down with the bases on ball effect decreasing much more. Now, if we want to construct a metric to pick players, we need to consider single, doubles, and triples as well. Can we build a model that predicts runs based on all these outcomes? Now, we're going to take somewhat of a leap of faith and assume that these five variables are jointly normal. This means that if we pick any one of them and hold the other for fixed, the relationship with the outcome-- in this case, runs per game-- is linear. And the slopes for this relationship do not depend on the other four values that were held constant. If this is true, if this model holds true, then a linear model for our data is the following. 
+
+$$Y_i~=~\beta_0~+~\beta_1x_{i,1}~+~\beta_2x_{i,2}~+~\beta_3x_{i,3}~+~\beta_4x_{i,4}~+~\beta_5x_{i,5}~+~\epsilon_i$$
+
+With x1, x2, x3, x4, x5 representing bases on balls per game, singles per game, doubles per game, triples per game, and home runs per game, respectively. 
+
+```{r 2_4_1-2}
+fit_1 <- Teams %>%
+  filter(yearID %in% 1961:2001) %>%
+  mutate(BB = BB / G,
+         singles = (H - X2B - X3B - HR) / G,
+         doubles = X2B / G,
+         triples = X3B / G,
+         HR = HR / G, 
+         R = R / G) %>%
+  lm(R ~ BB + singles + doubles + triples + HR, data = .)
+coefs <- tidy(fit_1, conf.int = TRUE)
+coefs
+```
+
+Using lm, we can quickly find the least square errors for the parameters using this relatively simple piece of code. We can again use the tidy function to see the coefficients, the standard errors, and confidence intervals. 
+
+```{r 2_4_1-3}
+Teams %>% 
+  filter(yearID %in% 2002) %>% 
+  mutate(BB = BB/G, 
+         singles = (H-X2B-X3B-HR)/G, 
+         doubles = X2B/G, 
+         triples =X3B/G, 
+         HR=HR/G,
+         R=R/G)  %>% 
+  mutate(R_hat = predict(fit, newdata = .)) %>%
+  ggplot(aes(R_hat, R, label = teamID)) + 
+  geom_point() +
+  geom_text(nudge_x=0.1, cex = 2) + 
+  geom_abline()
+```
+
+To see how well our metric actually predicts runs, we can predict the number of runs for each team in 2002 using the function predict to make the plot. Note that we did not use the 2002 year to create this metric. We used data from years previous to 2002. 
+
+<img src="images/2_4_1-1.png" style="margin-right: 10px;" />
+
+And here is the plot. Our model does quite a good job, as demonstrated by the fact that points from the observed versus predicted plot fall close to the identity line. So instead of using batting average or just the number of home runs as a measure for picking players, we can use our fitted model to form a more informative metric that relates more directly to run production. Specifically, to define a metric for player A, we imagine a team made up of players just like player A and use our fitted a regression model to predict how many runs this team would produce. 
+
+<img src="images/2_4_1-2.png" style="margin-right: 10px;" />
+
+The formula would look like this. We're basically sticking in the estimated coefficients into the regression formula. However, to define a player's specific metric, we have a bit more work to do. Our challenge here is that we have derived the metrics for teams based on team-level summary statistics. For example, the home run value that is entered into the equation is home runs per game for the entire team. If you compute the home runs per game for a player, it will be much lower. As the total is accumulated by nine batters, not just one. Furthermore, if a player only plays part of the game and gets less opportunity than average, it's still considered a game play. So this means that their rates will be lower than they should be. For players, a rate that takes into account opportunities is a **per-plate-appearance rate**. 
+
+```{r 2_4_1-4}
+pa_per_game <- Batting %>%
+  filter(yearID == 2002) %>%
+  group_by(teamID) %>%
+  summarize(pa_per_game = sum(AB + BB) / max(G)) %>%
+  .$pa_per_game %>%
+  mean
+```
+
+To make the per-game team rate comparable to the per-plate-appearance player rate, we compute the average number of team plate appearances per game using this simple piece of code. Now, we're ready to use our metric. We're going to compute the per-plate-appearance rates for players available in 2002. But we're going to use data from 1999 2001. Because remember, we are picking players in 2002. We don't know what has happened yet. To avoid small sample artifacts, we're going to filter players with few plate interferences. 
+```{r 2_4_1-5}
+players <- Batting %>% filter(yearID %in% 1999:2001) %>% 
+  group_by(playerID) %>%
+  mutate(PA = BB + AB) %>%
+  summarize(G = sum(PA)/pa_per_game,
+            BB = sum(BB)/G,
+            singles = sum(H-X2B-X3B-HR)/G,
+            doubles = sum(X2B)/G, 
+            triples = sum(X3B)/G, 
+            HR = sum(HR)/G,
+            AVG = sum(H)/sum(AB),
+            PA = sum(PA)) %>%
+  filter(PA >= 300) %>%
+  select(-G) %>%
+  mutate(R_hat = predict(fit, newdata = .))
+players %>% ggplot(aes(R_hat)) + 
+  geom_histogram(binwidth = 0.5, color = "black")
+```
+
+Here is the calculation of what we want to do in one long line of code using tidyverse. So we fit our model. And we have player-specific metrics. The player-specific predicted runs computer here can be interpreted as a number of runs we would predict a team to score if this team was made up of just that player, if that player batted every single time. The distribution shows that there's y variability across players, as we can see here. To actually build the teams, we will need to know the players' salaries, since we have a limited budget. Remember, we are pretending to be the Oakland A's in 2002 with only a $\$$40 million budget. We also need to know the players' position. Because we're going to need one shortstop, one second baseman, one third baseman, et cetera. For this, we're going to have to do a little bit of data wrangling to combine information that is contained in different tables from the Lahman library. OK, so here we go. 
+
+```{r 2_4_1-6}
+players <- Salaries %>%
+  filter(yearID == 2002) %>%
+  select(playerID, salary) %>%
+  right_join(players, by = 'playerID')
+```
+
+We start by adding the 2002 salaries for each player using this code. Next, we're going to add the defensive position. This is a little bit complicated, because players play more than one position each year. So here, we're going to pick the one position most played by each player using the top_n function. And to make sure that we only pick one position in the case of ties, we're going to take the first row if there is a tie. We also remove the OF position. Because this stands for outfielder, which is a generalization of three positions-- left field, center field, right field. We also remove pitchers, as they don't bat in the league that the Athletics play. 
+
+```{r 2_4_1-7}
+players <- Fielding %>%
+  filter(!POS %in% c("OF", "P"))%>%
+  group_by(playerID) %>%
+  top_n(1, G) %>%
+  filter(row_number(G) == 1) %>%
+  ungroup() %>%
+  select(playerID, POS) %>%
+  right_join(players, by = "playerID")
+players %>% filter(!is.na(POS) & !is.na(salary))
+```
+
+Here is the code that does that. 
+
+```{r 2_4_1-8}
+players <- Master %>%
+  select(playerID, nameFirst, nameLast, debut) %>%
+  right_join(players, by = "playerID")
+```
+
+Finally, we add their names and last names so we know who we're talking about. And here's a code that does that. 
+
+```{r 2_4_1-9}
+players %>% 
+  select(nameFirst, nameLast, POS, salary, R_hat) %>%
+  arrange(desc(R_hat)) %>%
+  top_n(10)
+```
+
+So now, we have a table with our predicted run statistic, some other statistic, the player's name, their position, and their salary. If we look at the top 10 players based on our run production statistic, you're going to recognize some names if you're a baseball fan. Note the very high salaries of these players in the top 10. In fact, we see that players with high metrics have high salaries. 
+
+```{r 2_4_1-10}
+players %>%
+  ggplot(aes(salary, R_hat, color = POS)) +
+  geom_point() +
+  scale_x_log10()
+```
+
+
+We can see that by making a plot we do see some low-cost players with very high metrics. These would be great for our team. Unfortunately, these are likely young players that have not yet been able to negotiate a salary and are not going to be available in 2002. For example, the lowest earner on our top 10 list is Albert Pujols, who was a rookie in 2001. 
+
+```{r 2_4_1-11}
+players %>%
+  filter(debut < 1998) %>%
+  ggplot(aes(salary, R_hat, color = POS)) +
+  geom_point() +
+  scale_x_log10()
+```
+
+Here's a plot with players that debuted before 1997. This removes all the young players. We can now search for good deals by looking at players that produce many more runs and others with similar salaries. We can use this table to decide what players to pick and keep our total salary below the $40 million Billy Beane had to work with.
+
+<img src="images/2_4_1-Q1.png" style="margin-right: 10px;" />
+
+<img src="images/2_4_1-Q2.png" style="margin-right: 10px;" />
+
+<img src="images/2_4_1-Q3.png" style="margin-right: 10px;" />
