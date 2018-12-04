@@ -798,6 +798,8 @@ Here, we have changed xi to xi minus the average height x bar. We have centered 
 <img src="images/2_1_3-Q2.png" style="margin-right: 10px;" />
 
 
+## 2.2 Least Squares Estimates (LSE)
+
 ### 2.2.1 Least Squares Estimates (LSE)
 For linear models to be useful, we have to estimate the unknown parameters, the betas.
 The standard approach in science is to find the values that minimize the distance of the fitted model to the data. To quantify this, we use the **least squares equation**.  For Galton's data, we would write something like this. 
@@ -935,3 +937,72 @@ But it's very important to note that several assumptions -- we just described so
 <img src="images/2_2_3-Q1.png" style="margin-right: 10px;" />
 
 <img src="images/2_2_3-Q2.png" style="margin-right: 10px;" />
+
+
+## 2.3 Tibbles, do, and broom
+
+### 2.3.1 Advanced dplyr: Tibbles
+Let's go back to baseball. In a previous example, we estimated the regression lines to predict runs from bases and balls in different home run strata. 
+
+```{r 2_3_1-1}
+data("Teams")
+
+dat <- Teams %>%
+  filter(yearID %in% 1961:2001) %>%
+  mutate(HR_per_game = round(HR / G, 1),
+         BB_per_game = BB  / G,
+         R_per_game  = R) %>%
+  select(HR_per_game, BB_per_game, R_per_game) %>%
+  filter(HR_per_game >= 0.4 & HR_per_game <= 1.2)
+```
+
+We first constructed a data frame similar to this. 
+
+```{r 2_3_1-2}
+dat %>% group_by(HR_per_game) %>%
+  summarize(slope = cor(BB_per_game, R_per_game) * sd(R_per_game) / sd(BB_per_game))
+```
+
+Then, to compute the regression line in each strata, since we didn't know the lm function back then, we used the formula directly like this. We argued that the slopes are similar and that the differences were perhaps due to random variation. To provide a more rigorous defense of the slopes being the same, which is what led to our multivariate regression model, we could compute confidence intervals for each slope. We have not learned the formula for this, but the lm function provides enough information to construct them. 
+
+```{r 2_3_1-3}
+# Estimated slope with function lm() - not correct
+# The lm()-finction ignores the group_by()-function
+dat %>% group_by(HR_per_game) %>%
+  lm(R_per_game ~ BB_per_game, data = .) %>%
+  .$coef
+```
+
+First, note that if we try to use the lm function to get the estimated slope like this, we don't get what we want. The lm function ignored the group_by. This is expected, because lm is not part of the tidyverse and does not know how to handle the outcome of group_by which is a group tibble.
+We're going to describe tibbles in some details now. When summarize receives the output of group_by, it somehow knows which rows of the table go with which groups. But where is this information stored in the data frame? 
+
+```{r 2_3_1-4}
+# Output: Tibbles
+dat %>% group_by(HR_per_game) %>% head()
+```
+
+Let's write some code to see the output of a group_by call. Note that there are no columns with the information needed to define the groups. But if you look closely at the output, you notice the line "A tibble, 6 by 3." 
+
+```{r 2_3_1-5}
+# Output: Class
+dat %>% group_by(HR_per_game) %>% class()
+```
+
+We can learn the class of the return object using this line of code, and we see that the class is a "tbl." This is pronounced "tibble." It is also a tbl_df.
+This is equivalent to tibble. **The tibble is a special kind of data frame**. We have seen them before, because tidyverse functions such as group_by and also summarize always return this type of data frame. The group_by function returns a special kind of tibble, the grouped tibble. We will say more about the grouped tibbles later. Note that the manipulation verbs, select, filter, mutate, and arrange, don't necessarily return tibbles. They preserve the class of the input. If they receive a regular data frame, they return a regular data frame. If they receive a tibble, they return a tibble. But tibbles are the default data frame for the tidyverse. Tibbles are very similar to data frames. You can think of them as modern versions of data frames. Next, we're going to describe briefly three important differences.
+
+
+<img src="images/2_3_1-Q1.png" style="margin-right: 10px;" />
+
+<img src="images/2_3_1-Q2.png" style="margin-right: 10px;" />
+
+
+
+### 2.3.2 Tibbles: Differences from Data Frames
+In this video, we're going to describe some of the main differences between tibbles and data frames. First, the print method for tibble is much more readable than that of a data frame. To see this, type teams on your console after loading the Baseball Lahman Database. And you will see a very, very long list of columns and rows. It's barely readable. Teams is a data frame with many rows and columns. That's why you see that. Nevertheless, the output just shows everything wraps around and is hard to read. It is so bad that we don't even print it here. We'll let you print it on your own screen. Now if you convert this data frame to a tibble data frame, the output is much more readable. Here's an example.
+
+That's the first main difference between tibbles and data frames. A second one is that if you subset the columns of a data frame, you may get back an object that is not a data frame. Here's an example. If we subset the 20th column, we get back an integer. That's not a data frame. With tibbles, this is not the case. Here's an example.
+If we subset a table, we get back a table. This is useful in the tidyverse since functions require data frames as input. Now whenever you want to access the original vector that defines a column in a table, for this, you actually have to use the accessor dollar sign.
+Here's an example. A related feature to this is that tibbles will give you a warning if you try to access a column that does not exist. That's not the case for data frames. For example, if we accidentally write hr in lowercase instead of uppercase, with a data frame, all we get is a no. No warning. This can make it quite hard to debug code. In contrast, if it's a tibble, and you try to access the lowercase hr column, which doesn't exist, you actually get a warning.
+
+A third difference is that while columns of a data frame need to be a vector of number strings or Boolean, tibbles can have more complex objects, such as lists or functions. Also note that we can create tibbles with the tibble function. So, look at this line of code. We're creating a column that actually has functions in it. You can see the output here. Finally, the last difference we describe is that tibbles can be grouped. The function group by returns a special kind of tibble, a grouped tibble. This class stores information that lets you know which rows are in which groups. The tidyverse functions, in particular the summarize functions, are aware of the group information. In the example we showed, we saw that the on function, which is not part of the tidyverse, does not know how to deal with group tibbles. The object is basically converted to a regular data frame, and then the function runs ignoring the groups. This is why we only get one pair of estimates, as we see here. To make these non-tidyverse function better integrate with a tidyverse, we will learn a new function, the function do.
