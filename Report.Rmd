@@ -18,6 +18,7 @@ library(Lahman)
 library(HistData)
 library(broom)
 library(gridExtra)
+library(broom)
 ```
 
 Linear regression is commonly used to quantify the relationship between two or more variables. It is also used to adjust for confounding. In this course, we cover how to implement linear regression and adjust for confounding in practice using R.
@@ -1131,3 +1132,85 @@ Here's an example in which return both estimated parameters. The slope and inter
 <img src="images/2_3_3-Q2_1.png" style="margin-right: 10px;" />
 
 <img src="images/2_3_3-Q2_2.png" style="margin-right: 10px;" />
+
+
+
+### 2.3.4 Broom
+The original task we ask for in a previous video was to provide an estimate and a confidence interval for the slope estimates of each strata.
+The broom packs will make this quite easy. Broom has three main functions all of which
+extract information from the object returned by the function LM, and return it in a tidy verse friendly data frame. These functions are **tidy, glance and augment**. The tidy function returns estimates and related information as a data frame. 
+
+```{r 2_3_4-1}
+data("Teams")
+
+dat <- Teams %>%
+  filter(yearID %in% 1961:2001) %>%
+  mutate(HR_per_game = round(HR / G, 1),
+         BB_per_game = BB  / G,
+         R_per_game  = R / G) %>%
+  select(HR_per_game, BB_per_game, R_per_game) %>%
+  filter(HR_per_game >= 0.4 & HR_per_game <= 1.2)
+
+fit <- lm(R_per_game ~ BB_per_game, data = dat)
+tidy(fit)
+```
+
+Here's an example.
+
+```{r 2_3_4-2}
+# Additional important summaries
+tidy(fit, conf.int = TRUE)
+```
+
+We can add other important summaries, such as confidence intervals, using arguments like this.Because the outcome is a data frame, we can immediately use it with do to string together the commands that produce the table we are after. So this piece of code will generate what we wanted to see. 
+
+```{r 2_3_4-3}
+# Outcome is a data frame , we can use do()-function
+dat %>%
+  group_by(HR_per_game) %>%
+  do(tidy(lm(R_per_game ~ BB_per_game, data = .), conf.int = TRUE))
+```
+
+Because a data frame is returned, we can filter and select the rows and columns we want.
+
+```{r 2_3_4-4}
+# Select() and filter()
+dat %>%
+  group_by(HR_per_game) %>%
+  do(tidy(lm(R_per_game ~ BB_per_game, data = .), conf.int = TRUE)) %>%
+  filter(term == "BB_per_game") %>%
+  select(HR_per_game, estimate, conf.low, conf.high)
+```
+
+So this simple piece of code gives us exactly the table we asked for. We have filtered away the intercept rows, and only show the columns we care about, the estimate and the confidence intervals. Furthermore, a table like this makes visualization with ggplot quite easy. 
+
+```{r 2_3_4-5}
+## Plot
+dat %>%
+  group_by(HR_per_game) %>%
+  do(tidy(lm(R_per_game ~ BB_per_game, data = .), conf.int = TRUE)) %>%
+  filter(term == "BB_per_game") %>%
+  select(HR_per_game, estimate, conf.low, conf.high) %>%
+  ggplot(aes(HR_per_game, y = estimate, ymin = conf.low, ymax = conf.high)) +
+  geom_errorbar() +
+  geom_point()
+```
+
+So this piece of code produces this nice plot, which provides very useful information. Now we return to discussing our original task of determining if slopes change. The plot we just made using do and broom shows that the confidence intervals overlap, which provides a nice visual confirmation that our assumption that the slopes do not change with home run strata, is relatively safe.
+
+```{r 2_3_4-6}
+## Glance() and Augement()
+glance(fit)
+augment(fit)
+```
+
+Earlier we mentioned two other functions from the broom package, glance and augment Glance and augment relate to model specific and observation specific outcomes, respectively.
+Here we can see the model fit summary the glance returns.
+You can learn more about these summaries in any regression textbook.
+We'll see an example of augment in a future video.
+
+<img src="images/2_3_4-Q1.png" style="margin-right: 10px;" />
+
+<img src="images/2_3_4-Q2_1.png" style="margin-right: 10px;" />
+
+<img src="images/2_3_4-Q2_2.png" style="margin-right: 10px;" />
