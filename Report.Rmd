@@ -951,7 +951,7 @@ dat <- Teams %>%
   filter(yearID %in% 1961:2001) %>%
   mutate(HR_per_game = round(HR / G, 1),
          BB_per_game = BB  / G,
-         R_per_game  = R) %>%
+         R_per_game  = R / G) %>%
   select(HR_per_game, BB_per_game, R_per_game) %>%
   filter(HR_per_game >= 0.4 & HR_per_game <= 1.2)
 ```
@@ -1049,3 +1049,85 @@ So, look at this line of code. We're creating a column that actually has functio
 Finally, the last difference we describe is that tibbles can be grouped. The function group by returns a special kind of tibble, a grouped tibble. This class stores information that lets you know which rows are in which groups. The tidyverse functions, in particular the summarize functions, are aware of the group information. In the example we showed, we saw that the on lm-function, which is not part of the tidyverse, does not know how to deal with group tibbles. The object is basically converted to a regular data frame, and then the function runs ignoring the groups. This is why we only get one pair of estimates, as we see here. To make these non-tidyverse function better integrate with a tidyverse, we will learn a new function, the function **do**.
 
 <img src="images/2_3_2-Q1.png" style="margin-right: 10px;" />
+
+
+
+### 2.3.3 DO
+In this video, we'll describe the very useful do( ) function. The tidyverse functions know how to interpret group tibbles. Furthermore, to facilitate stringing commands through the pipe, tidyverse function consistently return data frames. Since this assures that the output of 1 is accepted as the input of another. But most our functions do not recognize group tibbles, nor do they return data frames. The lm( ) function is an example. **The do( ) function serves as a bridge between our functions, such as lm( ) and the tidyverse**. The do( ) function understands group tibbles and always returns a data
+frame. So let's try to use the do( ) function to fit a regression line to each home run strata.
+
+```{r 2_3_3-1}
+data("Teams")
+
+dat <- Teams %>%
+  filter(yearID %in% 1961:2001) %>%
+  mutate(HR_per_game = round(HR / G, 1),
+         BB_per_game = BB  / G,
+         R_per_game  = R / G) %>%
+  select(HR_per_game, BB_per_game, R_per_game) %>%
+  filter(HR_per_game >= 0.4 & HR_per_game <= 1.2)
+
+dat %>%
+  group_by(HR_per_game) %>%
+  do(fit = lm(R_per_game ~ BB_per_game, data = .))
+```
+
+We would do it like this. Notice that we did in fact fit a regression line to each strata.
+But the do( ) function would create a data frame with the first column being the strata value. And a column named fit. We chose that name. It could be any name. And that column will contain the result of the lm( ) call. Therefore, the return table has a column with lm( ) objects in the cells, which is not very useful. Also note that if we do not name a column, then do( ) will return the actual output of lm( ), not a data frame. And this will result in an error since do( ) is expecting a data frame as output. 
+
+```
+# Error, because do() expecting a data frame as output
+dat %>%
+  group_by(HR_per_game) %>%
+  do(lm(R_per_game ~ BB_per_game, data = .))
+```
+
+If you write this, you will get the following error. For a useful data frame to be constructed, the output of the function, inside do( ), must be a data frame as well. We could build a function that returns only what you want in the form of a data frame. 
+
+We could write for example, this function. And then we use to do( ) without naming the output, since we are already getting a data frame. 
+
+```{r 2_3_3-3}
+# Output as data frame
+get_slope <- function(data){
+  fit <- lm(R_per_game ~ BB_per_game, data = data)
+  data.frame(slope = fit$coefficient[2],
+             se = summary(fit)$coefficient[2, 2])
+}
+
+dat %>%
+  group_by(HR_per_game) %>%
+  do(get_slope(.))
+```
+
+We can write this very simple piece of code and now we get the expected result. We get the slope for each strata and the standard error for that slope. If we name the output, then we get a column containing the data frame. 
+
+```{r 2_3_3-4}
+# Name the output
+dat %>%
+  group_by(HR_per_game) %>%
+  do(slope = get_slope(.))
+```
+
+So if we write this piece of code, now once again, we get one of these complex tibbles with a column having a data frame in each cell. Which is again, not very useful. All right. Now we're going to cover one last feature of do( ). If the data frame being returned has more than one row, these will be concatenated appropriately. 
+
+```{r 2_3_3-5}
+# If data frame being returned has more than more one row
+get_lse <- function(data){
+  fit <- lm(R_per_game ~ BB_per_game, data = data)
+  data.frame(term = names(fit$coefficients),
+             slope = fit$coefficient,
+             se = summary(fit)$coefficient[, 2])
+}
+
+dat %>%
+  group_by(HR_per_game) %>%
+  do(get_lse(.))
+```
+
+Here's an example in which return both estimated parameters. The slope and intercept. We write this piece of code. And now we use the do( ) function as we used it before, and get a very useful tibble, giving us the estimates of the slope and intercept, as well as the standard errors. Now, if you think this is all a bit too complicated, you're not alone. To simplify things, we're going to introduce the **broom package**, which was designed to facilitate the use of model fitting functions such as lm( ) with the tidyverse.
+
+<img src="images/2_3_3-Q1.png" style="margin-right: 10px;" />
+
+<img src="images/2_3_3-Q2_1.png" style="margin-right: 10px;" />
+
+<img src="images/2_3_3-Q2_2.png" style="margin-right: 10px;" />

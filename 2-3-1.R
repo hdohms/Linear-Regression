@@ -4,7 +4,7 @@ dat <- Teams %>%
   filter(yearID %in% 1961:2001) %>%
   mutate(HR_per_game = round(HR / G, 1),
          BB_per_game = BB  / G,
-         R_per_game  = R) %>%
+         R_per_game  = R / G) %>%
   select(HR_per_game, BB_per_game, R_per_game) %>%
   filter(HR_per_game >= 0.4 & HR_per_game <= 1.2)
 
